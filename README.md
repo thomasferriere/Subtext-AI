@@ -181,3 +181,17 @@ L'application est alors disponible sur **http://localhost:8000**. La base SQLite
 - Analyse de **tous les blocs** d'un fichier (la V1 n'analyse que le premier chunk).
 - Migration de SQLite vers **PostgreSQL** pour un déploiement multi-utilisateurs.
 - Streaming des réponses du modèle et indicateur de progression côté UI.
+
+---
+
+## Avertissement & mentions légales
+
+> ⚠️ Subtext AI produit une analyse **générée par IA**, **indicative et faillible**, **sans valeur médicale, psychologique ou juridique**. Elle ne doit pas servir à évaluer des personnes réelles. L'importation d'un `.srt` suppose que l'utilisateur **dispose des droits** sur le contenu. Le traitement est **100 % local** (aucune donnée externe) ; les analyses sont stockées dans `subtext.db` et peuvent être effacées via `DELETE /history` (droit à l'effacement).
+
+Détails complets — disclaimer IA, transparence (AI Act), droits d'auteur, RGPD/données personnelles, limitation de responsabilité — dans **[LEGAL.md](LEGAL.md)**.
+
+---
+
+## Licence
+
+Distribué sous licence **MIT** — voir le fichier [LICENSE](LICENSE). Réutilisation libre avec conservation de la notice de copyright. Logiciel fourni « en l'état », sans garantie.

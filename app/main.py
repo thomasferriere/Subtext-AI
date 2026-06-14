@@ -230,6 +230,50 @@ async def history():
     return {"count": len(entries), "history": entries}
 
 
+@app.delete(
+    "/history",
+    tags=["analysis"],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit)],
+)
+async def clear_history():
+    """
+    Efface **toutes** les analyses stockées (droit à l'effacement / RGPD).
+    Retourne le nombre d'entrées supprimées.
+    """
+    try:
+        deleted = await database.delete_all_analyses()
+    except Exception as exc:
+        logger.exception("Effacement de l'historique impossible.")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Impossible d'effacer l'historique : {exc}",
+        ) from exc
+
+    return {"deleted": deleted}
+
+
+@app.delete(
+    "/history/{analysis_id}",
+    tags=["analysis"],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit)],
+)
+async def delete_history_entry(analysis_id: int):
+    """Efface une analyse précise par son identifiant (droit à l'effacement / RGPD)."""
+    try:
+        deleted = await database.delete_analysis(analysis_id)
+    except Exception as exc:
+        logger.exception("Suppression de l'analyse #%s impossible.", analysis_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Impossible de supprimer l'analyse : {exc}",
+        ) from exc
+
+    if deleted == 0:
+        raise HTTPException(status_code=404, detail="Analyse introuvable.")
+
+    return {"deleted": deleted}
+
+
 @app.post(
     "/analyze",
     tags=["analysis"],

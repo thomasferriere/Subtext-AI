@@ -162,3 +162,31 @@ def _get_history_sync() -> List[Dict[str, Any]]:
 async def get_history() -> List[Dict[str, Any]]:
     """Retourne la liste de toutes les analyses, de la plus récente à la plus ancienne."""
     return await asyncio.to_thread(_get_history_sync)
+
+
+def _delete_all_sync() -> int:
+    with _connect() as conn:
+        cursor = conn.execute("DELETE FROM analyses")
+        conn.commit()
+        return cursor.rowcount
+
+
+async def delete_all_analyses() -> int:
+    """Supprime toutes les analyses (droit à l'effacement). Retourne le nombre de lignes effacées."""
+    count = await asyncio.to_thread(_delete_all_sync)
+    logger.info("Effacement de l'historique : %d analyse(s) supprimée(s).", count)
+    return count
+
+
+def _delete_by_id_sync(analysis_id: int) -> int:
+    with _connect() as conn:
+        cursor = conn.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
+        conn.commit()
+        return cursor.rowcount
+
+
+async def delete_analysis(analysis_id: int) -> int:
+    """Supprime une analyse par son id. Retourne le nombre de lignes effacées (0 ou 1)."""
+    count = await asyncio.to_thread(_delete_by_id_sync, analysis_id)
+    logger.info("Suppression de l'analyse #%s : %d ligne(s).", analysis_id, count)
+    return count
