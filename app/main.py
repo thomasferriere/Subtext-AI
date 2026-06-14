@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -8,6 +9,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app import database
 from app.parser import SRTParseError, parse_srt_to_chunks
 
 logging.basicConfig(level=logging.INFO)
@@ -67,10 +69,18 @@ FEW_SHOT_EXAMPLE_OUTPUT = json.dumps(
     ensure_ascii=False,
 )
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Initialise la base de données au démarrage de l'application."""
+    await database.init_db()
+    yield
+
+
 app = FastAPI(
     title="Subtext AI",
     description="Analyse psychologique de dialogues issus de fichiers SRT",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Service des fichiers statiques (CSS, JS, assets) sous /static.
@@ -133,6 +143,24 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/history", tags=["analysis"])
+async def history():
+    """
+    Retourne la liste des analyses précédemment sauvegardées, de la plus récente
+    à la plus ancienne, afin d'alimenter l'historique du dashboard.
+    """
+    try:
+        entries = await database.get_history()
+    except Exception as exc:
+        logger.exception("Lecture de l'historique impossible.")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Impossible de récupérer l'historique : {exc}",
+        ) from exc
+
+    return {"count": len(entries), "history": entries}
+
+
 @app.post("/analyze", tags=["analysis"])
 async def analyze(file: UploadFile = File(...)):
     """
@@ -146,6 +174,19 @@ async def analyze(file: UploadFile = File(...)):
             status_code=400,
             detail="Le fichier fourni doit avoir l'extension .srt.",
         )
+
+    # 1bis. Cache : si ce nom de fichier a déjà été analysé, on renvoie le
+    # résultat sauvegardé sans solliciter Ollama. Une panne de la base ne doit
+    # pas empêcher une nouvelle analyse : on log et on poursuit.
+    try:
+        cached = await database.get_analysis_by_filename(file.filename)
+    except Exception:
+        logger.exception("Lecture du cache impossible ; analyse normale poursuivie.")
+        cached = None
+
+    if cached is not None:
+        logger.info("Cache hit pour '%s' (analyse #%s).", file.filename, cached["id"])
+        return {**cached["result"], "cached": True, "cached_at": cached["timestamp"]}
 
     # 2. Lecture asynchrone du fichier et décodage en UTF-8
     try:
@@ -244,8 +285,20 @@ async def analyze(file: UploadFile = File(...)):
             "raw_response": raw_analysis,
         }
 
-    return {
+    result = {
         "chunks_total": len(chunks),
         "format_valid": format_valid,
         "analysis": analysis,
     }
+
+    # 8. Persistance : on sauvegarde l'analyse pour servir le cache et l'historique.
+    # Un échec d'écriture ne doit pas priver le client de son résultat.
+    try:
+        meta = await database.save_analysis(file.filename, result)
+        result["id"] = meta["id"]
+        result["timestamp"] = meta["timestamp"]
+    except Exception:
+        logger.exception("Sauvegarde de l'analyse impossible ; résultat renvoyé sans persistance.")
+
+    result["cached"] = False
+    return result
