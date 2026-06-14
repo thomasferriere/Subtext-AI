@@ -10,7 +10,7 @@ Aucune donnée n'est envoyée à un service externe : tout le traitement NLP s'e
 
 ## Objectif du projet
 
-Fournir un outil d'aide à l'analyse de scénarios et de dialogues — utile en écriture, en étude de la communication ou en sciences humaines — qui transforme un simple fichier `.srt` en un **profil psychologique structuré** au format JSON, tout en garantissant la **confidentialité** (modèle local) et la **rapidité** (mise en cache des analyses déjà effectuées).
+Fournir un outil d'aide à l'analyse de scénarios et de dialogues - utile en écriture, en étude de la communication ou en sciences humaines - qui transforme un simple fichier `.srt` en un **profil psychologique structuré** au format JSON, tout en garantissant la **confidentialité** (modèle local) et la **rapidité** (mise en cache des analyses déjà effectuées).
 
 ---
 
@@ -99,7 +99,7 @@ subtext-ai/
 
 Avant tout appel au modèle, le contenu brut du fichier est condensé en une empreinte **MD5** (`hashlib.md5(file_bytes)`). Cette empreinte sert de clé d'indexation en base :
 
-- Deux fichiers au **contenu identique** — même renommés — partagent le même hash : l'analyse est servie **instantanément** depuis SQLite, sans solliciter Ollama.
+- Deux fichiers au **contenu identique** - même renommés - partagent le même hash : l'analyse est servie **instantanément** depuis SQLite, sans solliciter Ollama.
 - Deux fichiers **homonymes mais différents** produisent des hash distincts et sont donc analysés séparément.
 
 Chaque réponse signale son origine via le drapeau `cached` (et `cached_at` pour la date d'origine).
@@ -168,7 +168,3 @@ L'application est alors disponible sur **http://localhost:8000**. La base SQLite
 - Analyse de **tous les blocs** d'un fichier (la V1 n'analyse que le premier chunk).
 - Migration de SQLite vers **PostgreSQL** pour un déploiement multi-utilisateurs.
 - Streaming des réponses du modèle et indicateur de progression côté UI.
-
----
-
-*Projet académique — Subtext AI · Backend Python (FastAPI) · IA locale via Ollama.*
