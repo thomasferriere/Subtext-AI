@@ -14,6 +14,24 @@ Fournir un outil d'aide à l'analyse de scénarios et de dialogues — utile en 
 
 ---
 
+## Aperçu
+
+### Écran d'accueil
+
+Interface translucide façon macOS : importez (glisser-déposer ou clic) un fichier `.srt` pour lancer l'analyse.
+
+![Écran d'accueil de Subtext AI](docs/screenshots/01-accueil.png)
+
+### Résultat d'analyse & historique
+
+Le profil psychologique s'affiche sous forme de carte (score de tension, émotion dominante, manipulation, dynamique de pouvoir, intention). La section **Analyses Précédentes** liste les analyses passées ; un clic les réaffiche instantanément depuis le cache, sans rappeler le modèle.
+
+![Résultat d'analyse et historique](docs/screenshots/02-analyse-historique.png)
+
+> *Captures réalisées sur l'interface réelle de l'application, avec des données d'exemple à des fins d'illustration.*
+
+---
+
 ## Architecture technique
 
 Flux de données d'une requête d'analyse :
