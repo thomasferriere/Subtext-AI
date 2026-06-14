@@ -24,6 +24,10 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3"
 OLLAMA_TIMEOUT = 60.0
 
+# Taille maximale d'un upload (anti-DoS mémoire) : un .srt de sous-titres reste
+# très léger ; 5 Mo est largement suffisant.
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
 # --- Ingénierie de prompt -----------------------------------------------------
 # System prompt : définit le rôle, le schéma JSON strict et les consignes
 # d'analyse des rapports de pouvoir (qui domine, intention).
@@ -190,10 +194,20 @@ async def analyze(file: UploadFile = File(...)):
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Le fichier fourni est vide.")
 
+    if len(file_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                "Fichier trop volumineux : la taille maximale autorisée est de "
+                f"{MAX_UPLOAD_BYTES // (1024 * 1024)} Mo."
+            ),
+        )
+
     # 2bis. Empreinte MD5 du contenu : deux fichiers identiques (même contenu)
     # partagent le même hash et donc le même cache ; deux fichiers homonymes au
     # contenu différent produisent des hash distincts et sont traités séparément.
-    content_hash = hashlib.md5(file_bytes).hexdigest()
+    # usedforsecurity=False : le MD5 sert de clé de cache, pas de garantie crypto.
+    content_hash = hashlib.md5(file_bytes, usedforsecurity=False).hexdigest()
 
     # 2ter. Cache : si ce contenu a déjà été analysé, on renvoie le résultat
     # sauvegardé sans solliciter Ollama. Une panne de la base ne doit pas

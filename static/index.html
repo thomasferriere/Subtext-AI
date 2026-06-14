@@ -661,6 +661,18 @@
             });
         }
 
+        // Échappe les valeurs dynamiques (issues du modèle, donc potentiellement
+        // hostiles) avant injection dans innerHTML — prévient les attaques XSS,
+        // en contexte texte comme en contexte attribut (guillemets).
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function createAnalysisCard(profile, index) {
             const card = document.createElement('div');
             card.className = 'analysis-card';
@@ -704,7 +716,7 @@
                     <div class="header-left">
                         <div>
                             <h4 class="card-title">Bloc #${index}</h4>
-                            <span class="emotion-text">Émotion : ${emotion}</span>
+                            <span class="emotion-text">Émotion : ${escapeHtml(emotion)}</span>
                         </div>
                     </div>
                     <span class="manipulation-badge ${manipulationClass}">${manipulationText}</span>
@@ -721,11 +733,11 @@
                 <div class="badges-row">
                     <div class="badge-item">
                         <span class="badge-label">Dynamique de pouvoir</span>
-                        <span class="badge-value val-blue" title="${powerDynamicsTooltip}">${powerDynamics}</span>
+                        <span class="badge-value val-blue" title="${escapeHtml(powerDynamicsTooltip)}">${escapeHtml(powerDynamics)}</span>
                     </div>
                     <div class="badge-item">
                         <span class="badge-label">Intention</span>
-                        <span class="badge-value val-purple" title="${intention}">${intention}</span>
+                        <span class="badge-value val-purple" title="${escapeHtml(intention)}">${escapeHtml(intention)}</span>
                     </div>
                 </div>
             `;
