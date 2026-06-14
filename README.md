@@ -163,6 +163,19 @@ L'application est alors disponible sur **http://localhost:8000**. La base SQLite
   Si le modèle renvoie un JSON invalide, la réponse est **dégradée proprement** (HTTP 200 avec `format_valid: false`) au lieu d'une erreur serveur.
 - **Modèles locaux** : aucune API payante ni dépendance cloud. Le choix du modèle (`llama3`) et de l'URL Ollama est centralisé dans `app/main.py` et peut être adapté à d'autres modèles locaux (Mistral, etc.).
 
+### Sécurité
+
+- **Validation des entrées** : extension, encodage UTF-8 et **taille maximale d'upload** (`5 Mo`, code `413` au-delà) ; les sorties du modèle sont **échappées** côté frontend avant rendu (protection XSS).
+- **Rate limiting** : limiteur à fenêtre glissante par IP (`20 requêtes / 60 s`) sur `/analyze` et `/history`, renvoyant `429` avec en-tête `Retry-After`.
+- **Authentification optionnelle** : définir la variable d'environnement `SUBTEXT_API_KEY` active la protection des endpoints d'analyse ; les requêtes doivent alors fournir l'en-tête `X-API-Key`. Désactivée par défaut pour l'usage local.
+
+  ```bash
+  SUBTEXT_API_KEY="ma-cle-secrete" uvicorn app.main:app
+  # Requête :  curl -H "X-API-Key: ma-cle-secrete" ...
+  ```
+
+  > En production, servir l'application derrière un reverse proxy (TLS) et restreindre l'accès réseau ; SQLite et le limiteur en mémoire conviennent à un déploiement simple mono-processus.
+
 ### Pistes d'évolution
 
 - Analyse de **tous les blocs** d'un fichier (la V1 n'analyse que le premier chunk).

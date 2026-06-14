@@ -1,12 +1,17 @@
+import asyncio
 import hashlib
 import json
 import logging
+import os
 import re
+import time
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 
 import httpx
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -27,6 +32,61 @@ OLLAMA_TIMEOUT = 60.0
 # Taille maximale d'un upload (anti-DoS mémoire) : un .srt de sous-titres reste
 # très léger ; 5 Mo est largement suffisant.
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+# --- Sécurité : clé API optionnelle + rate limiting ---------------------------
+# Authentification désactivée par défaut (usage local). Définir la variable
+# d'environnement SUBTEXT_API_KEY active la protection : les requêtes doivent
+# alors présenter l'en-tête `X-API-Key`.
+API_KEY = os.environ.get("SUBTEXT_API_KEY")
+
+# Fenêtre glissante : au plus RATE_LIMIT_MAX requêtes par IP sur RATE_LIMIT_WINDOW
+# secondes. En mémoire (mono-processus) — suffisant pour un déploiement simple.
+RATE_LIMIT_MAX = 20
+RATE_LIMIT_WINDOW = 60.0
+
+
+class RateLimiter:
+    """Limiteur de débit à fenêtre glissante, par clé (IP), sûr en asynchrone."""
+
+    def __init__(self, max_requests: int, window_seconds: float):
+        self._max = max_requests
+        self._window = window_seconds
+        self._hits: defaultdict = defaultdict(deque)
+        self._lock = asyncio.Lock()
+
+    async def check(self, key: str):
+        """Retourne (autorisé: bool, retry_after_secondes: float)."""
+        now = time.monotonic()
+        async with self._lock:
+            hits = self._hits[key]
+            # Purge des horodatages sortis de la fenêtre.
+            while hits and hits[0] <= now - self._window:
+                hits.popleft()
+            if len(hits) >= self._max:
+                return False, self._window - (now - hits[0])
+            hits.append(now)
+            return True, 0.0
+
+
+_rate_limiter = RateLimiter(RATE_LIMIT_MAX, RATE_LIMIT_WINDOW)
+
+
+async def verify_api_key(x_api_key: Optional[str] = Header(default=None, alias="X-API-Key")):
+    """Exige l'en-tête X-API-Key uniquement si SUBTEXT_API_KEY est configurée."""
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Clé API invalide ou manquante.")
+
+
+async def rate_limit(request: Request):
+    """Applique le limiteur de débit par adresse IP cliente."""
+    client = request.client.host if request.client else "unknown"
+    allowed, retry_after = await _rate_limiter.check(client)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Trop de requêtes. Merci de patienter avant de réessayer.",
+            headers={"Retry-After": str(int(retry_after) + 1)},
+        )
 
 # --- Ingénierie de prompt -----------------------------------------------------
 # System prompt : définit le rôle, le schéma JSON strict et les consignes
@@ -148,7 +208,11 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/history", tags=["analysis"])
+@app.get(
+    "/history",
+    tags=["analysis"],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit)],
+)
 async def history():
     """
     Retourne la liste des analyses précédemment sauvegardées, de la plus récente
@@ -166,7 +230,11 @@ async def history():
     return {"count": len(entries), "history": entries}
 
 
-@app.post("/analyze", tags=["analysis"])
+@app.post(
+    "/analyze",
+    tags=["analysis"],
+    dependencies=[Depends(verify_api_key), Depends(rate_limit)],
+)
 async def analyze(file: UploadFile = File(...)):
     """
     Endpoint POST asynchrone : accepte un fichier .srt, en extrait les dialogues
