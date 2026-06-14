@@ -10,6 +10,12 @@ env/
 *.db
 *.sqlite3
 
+# Secrets / variables d'environnement
+.env
+.env.*
+*.env
+!.env.example
+
 # OS
 .DS_Store
 .Rhistory
