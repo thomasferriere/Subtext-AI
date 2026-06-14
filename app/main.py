@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import re
@@ -175,20 +176,8 @@ async def analyze(file: UploadFile = File(...)):
             detail="Le fichier fourni doit avoir l'extension .srt.",
         )
 
-    # 1bis. Cache : si ce nom de fichier a déjà été analysé, on renvoie le
-    # résultat sauvegardé sans solliciter Ollama. Une panne de la base ne doit
-    # pas empêcher une nouvelle analyse : on log et on poursuit.
-    try:
-        cached = await database.get_analysis_by_filename(file.filename)
-    except Exception:
-        logger.exception("Lecture du cache impossible ; analyse normale poursuivie.")
-        cached = None
-
-    if cached is not None:
-        logger.info("Cache hit pour '%s' (analyse #%s).", file.filename, cached["id"])
-        return {**cached["result"], "cached": True, "cached_at": cached["timestamp"]}
-
-    # 2. Lecture asynchrone du fichier et décodage en UTF-8
+    # 2. Lecture asynchrone du fichier (nécessaire avant le cache : l'indexation
+    # se fait sur le hash du CONTENU, pas sur le nom de fichier).
     try:
         file_bytes = await file.read()
     except Exception as exc:  # erreur de transfert / lecture du flux
@@ -201,6 +190,28 @@ async def analyze(file: UploadFile = File(...)):
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Le fichier fourni est vide.")
 
+    # 2bis. Empreinte MD5 du contenu : deux fichiers identiques (même contenu)
+    # partagent le même hash et donc le même cache ; deux fichiers homonymes au
+    # contenu différent produisent des hash distincts et sont traités séparément.
+    content_hash = hashlib.md5(file_bytes).hexdigest()
+
+    # 2ter. Cache : si ce contenu a déjà été analysé, on renvoie le résultat
+    # sauvegardé sans solliciter Ollama. Une panne de la base ne doit pas
+    # empêcher une nouvelle analyse : on log et on poursuit.
+    try:
+        cached = await database.get_analysis_by_hash(content_hash)
+    except Exception:
+        logger.exception("Lecture du cache impossible ; analyse normale poursuivie.")
+        cached = None
+
+    if cached is not None:
+        logger.info(
+            "Cache hit (hash=%s, analyse #%s, fichier d'origine '%s').",
+            content_hash, cached["id"], cached["filename"],
+        )
+        return {**cached["result"], "cached": True, "cached_at": cached["timestamp"]}
+
+    # 3. Décodage UTF-8 du contenu.
     try:
         file_content = file_bytes.decode("utf-8")
     except UnicodeDecodeError:
@@ -209,7 +220,7 @@ async def analyze(file: UploadFile = File(...)):
             detail="Le fichier fourni doit être encodé en UTF-8 valide.",
         )
 
-    # 3. Extraction et division des dialogues du fichier SRT en chunks
+    # 4. Extraction et division des dialogues du fichier SRT en chunks
     try:
         chunks = await parse_srt_to_chunks(file_content)
     except SRTParseError as exc:
@@ -224,7 +235,7 @@ async def analyze(file: UploadFile = File(...)):
             detail="Aucun dialogue valide n'a pu être extrait du fichier SRT.",
         )
 
-    # 4. Pour cette V1 de test : on n'analyse que le premier bloc.
+    # Pour cette V1 de test : on n'analyse que le premier bloc.
     first_chunk = chunks[0]
 
     # 5. Construction du prompt Few-Shot (exemple résolu + dialogue à analyser).
@@ -291,10 +302,11 @@ async def analyze(file: UploadFile = File(...)):
         "analysis": analysis,
     }
 
-    # 8. Persistance : on sauvegarde l'analyse pour servir le cache et l'historique.
-    # Un échec d'écriture ne doit pas priver le client de son résultat.
+    # 8. Persistance : on sauvegarde l'analyse (indexée par hash de contenu) pour
+    # servir le cache et l'historique. Un échec d'écriture ne doit pas priver le
+    # client de son résultat.
     try:
-        meta = await database.save_analysis(file.filename, result)
+        meta = await database.save_analysis(file.filename, content_hash, result)
         result["id"] = meta["id"]
         result["timestamp"] = meta["timestamp"]
     except Exception:

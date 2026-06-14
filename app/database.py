@@ -36,14 +36,26 @@ def _init_db_sync() -> None:
             CREATE TABLE IF NOT EXISTS analyses (
                 id               INTEGER PRIMARY KEY AUTOINCREMENT,
                 filename         TEXT    NOT NULL,
+                content_hash     TEXT    NOT NULL,
                 timestamp        TEXT    NOT NULL,
                 full_json_result TEXT    NOT NULL
             )
             """
         )
-        # Index sur filename : la recherche de cache se fait par nom de fichier.
+
+        # Migration douce des bases créées avant l'indexation par hash : on
+        # ajoute la colonne content_hash si elle manque (anciennes lignes à NULL,
+        # qui ne provoqueront simplement jamais de cache hit).
+        existing_columns = {
+            row["name"] for row in conn.execute("PRAGMA table_info(analyses)")
+        }
+        if "content_hash" not in existing_columns:
+            conn.execute("ALTER TABLE analyses ADD COLUMN content_hash TEXT")
+
+        # Index sur content_hash : la recherche de cache se fait par empreinte
+        # du contenu du fichier.
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_analyses_filename ON analyses (filename)"
+            "CREATE INDEX IF NOT EXISTS idx_analyses_content_hash ON analyses (content_hash)"
         )
         conn.commit()
 
@@ -54,17 +66,17 @@ async def init_db() -> None:
     logger.info("Base de données initialisée : %s", DB_PATH)
 
 
-def _get_by_filename_sync(filename: str) -> Optional[Dict[str, Any]]:
+def _get_by_hash_sync(content_hash: str) -> Optional[Dict[str, Any]]:
     with _connect() as conn:
         row = conn.execute(
             """
-            SELECT id, filename, timestamp, full_json_result
+            SELECT id, filename, content_hash, timestamp, full_json_result
             FROM analyses
-            WHERE filename = ?
+            WHERE content_hash = ?
             ORDER BY id DESC
             LIMIT 1
             """,
-            (filename,),
+            (content_hash,),
         ).fetchone()
 
     if row is None:
@@ -73,41 +85,56 @@ def _get_by_filename_sync(filename: str) -> Optional[Dict[str, Any]]:
     return {
         "id": row["id"],
         "filename": row["filename"],
+        "content_hash": row["content_hash"],
         "timestamp": row["timestamp"],
         "result": json.loads(row["full_json_result"]),
     }
 
 
-async def get_analysis_by_filename(filename: str) -> Optional[Dict[str, Any]]:
+async def get_analysis_by_hash(content_hash: str) -> Optional[Dict[str, Any]]:
     """
-    Retourne la dernière analyse enregistrée pour ce nom de fichier, ou ``None``.
+    Retourne la dernière analyse enregistrée pour ce hash de contenu, ou ``None``.
 
-    Le champ ``result`` contient le payload JSON désérialisé tel qu'il a été
-    renvoyé au client lors de l'analyse initiale.
+    L'indexation par empreinte MD5 garantit que deux fichiers au contenu
+    identique partagent le même cache, indépendamment de leur nom. Le champ
+    ``result`` contient le payload JSON désérialisé tel qu'il a été renvoyé au
+    client lors de l'analyse initiale.
     """
-    return await asyncio.to_thread(_get_by_filename_sync, filename)
+    return await asyncio.to_thread(_get_by_hash_sync, content_hash)
 
 
-def _save_analysis_sync(filename: str, result: Dict[str, Any]) -> Dict[str, Any]:
+def _save_analysis_sync(
+    filename: str, content_hash: str, result: Dict[str, Any]
+) -> Dict[str, Any]:
     timestamp = datetime.now(timezone.utc).isoformat()
     payload = json.dumps(result, ensure_ascii=False)
     with _connect() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO analyses (filename, timestamp, full_json_result)
-            VALUES (?, ?, ?)
+            INSERT INTO analyses (filename, content_hash, timestamp, full_json_result)
+            VALUES (?, ?, ?, ?)
             """,
-            (filename, timestamp, payload),
+            (filename, content_hash, timestamp, payload),
         )
         conn.commit()
         new_id = cursor.lastrowid
-    return {"id": new_id, "filename": filename, "timestamp": timestamp}
+    return {
+        "id": new_id,
+        "filename": filename,
+        "content_hash": content_hash,
+        "timestamp": timestamp,
+    }
 
 
-async def save_analysis(filename: str, result: Dict[str, Any]) -> Dict[str, Any]:
-    """Sauvegarde une analyse et retourne ses métadonnées (id, filename, timestamp)."""
-    meta = await asyncio.to_thread(_save_analysis_sync, filename, result)
-    logger.info("Analyse sauvegardée (id=%s, filename=%s).", meta["id"], filename)
+async def save_analysis(
+    filename: str, content_hash: str, result: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Sauvegarde une analyse et retourne ses métadonnées (id, filename, content_hash, timestamp)."""
+    meta = await asyncio.to_thread(_save_analysis_sync, filename, content_hash, result)
+    logger.info(
+        "Analyse sauvegardée (id=%s, filename=%s, hash=%s).",
+        meta["id"], filename, content_hash,
+    )
     return meta
 
 
