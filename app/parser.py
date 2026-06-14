@@ -23,27 +23,36 @@ _TIMESTAMP_PATTERN = re.compile(
 _HTML_PATTERN = re.compile(r"<[^>]+>")
 
 
-async def parse_srt_to_chunks(file_content: str, chunk_size: int = 50) -> List[str]:
+async def parse_srt_to_chunks(
+    file_content: str, chunk_size: int = 50, overlap: int = 5
+) -> List[str]:
     """
-    Analyse le contenu textuel d'un fichier .srt, le nettoie et le regroupe en blocs (chunks).
+    Analyse le contenu textuel d'un fichier .srt, le nettoie et le regroupe en blocs (chunks)
+    glissants avec recouvrement (overlap).
 
     Étapes :
     1. Découpe le contenu par ligne.
     2. Supprime les numéros de séquence, les timestamps et les balises HTML.
     3. Ignore les lignes vides ou devenues vides après nettoyage.
-    4. Regroupe les répliques nettoyées en blocs de taille maximale `chunk_size`.
+    4. Regroupe les répliques nettoyées en blocs de taille maximale `chunk_size`,
+       chaque nouveau bloc reprenant les `overlap` dernières répliques du bloc
+       précédent afin de préserver la continuité narrative pour l'IA.
 
     Args:
         file_content: Le contenu brut du fichier .srt sous forme de chaîne de caractères.
         chunk_size: Le nombre maximal de répliques par bloc (chunk) (par défaut 50).
+        overlap: Le nombre de répliques de fin du bloc précédent réinjectées au
+            début du bloc suivant (par défaut 5). Doit être strictement inférieur
+            à `chunk_size`. Mettre à 0 pour désactiver le recouvrement.
 
     Returns:
         Une liste de chaînes de caractères, où chaque chaîne représente un bloc (chunk)
         de dialogues nettoyés. Peut être vide si aucun dialogue exploitable n'est trouvé.
 
     Raises:
-        SRTParseError: Si l'entrée n'est pas une chaîne de caractères ou si
-            `chunk_size` n'est pas un entier strictement positif.
+        SRTParseError: Si l'entrée n'est pas une chaîne de caractères, si
+            `chunk_size` n'est pas un entier strictement positif, ou si `overlap`
+            n'est pas un entier compris dans [0, chunk_size[.
     """
     # Validation défensive des arguments : un SRT mal formé ne doit pas faire planter le serveur.
     if not isinstance(file_content, str):
@@ -55,6 +64,12 @@ async def parse_srt_to_chunks(file_content: str, chunk_size: int = 50) -> List[s
     if not isinstance(chunk_size, int) or chunk_size <= 0:
         raise SRTParseError(
             f"chunk_size doit être un entier strictement positif (reçu : {chunk_size!r})."
+        )
+
+    if not isinstance(overlap, int) or overlap < 0 or overlap >= chunk_size:
+        raise SRTParseError(
+            "overlap doit être un entier compris dans [0, chunk_size[ "
+            f"(reçu : overlap={overlap!r}, chunk_size={chunk_size!r})."
         )
 
     try:
@@ -85,11 +100,20 @@ async def parse_srt_to_chunks(file_content: str, chunk_size: int = 50) -> List[s
 
             cleaned_dialogues.append(cleaned_line)
 
-        # Regroupement des répliques en blocs (chunks)
-        chunks: List[str] = [
-            "\n".join(cleaned_dialogues[i : i + chunk_size])
-            for i in range(0, len(cleaned_dialogues), chunk_size)
-        ]
+        # Regroupement des répliques en blocs (chunks) avec fenêtre glissante.
+        # On avance d'un pas de (chunk_size - overlap) : chaque bloc reprend ainsi
+        # automatiquement les `overlap` dernières répliques du bloc précédent.
+        chunks: List[str] = []
+        step = chunk_size - overlap
+        start = 0
+        total = len(cleaned_dialogues)
+        while start < total:
+            chunks.append("\n".join(cleaned_dialogues[start : start + chunk_size]))
+            # Le bloc courant atteint la fin : inutile de produire un bloc
+            # purement constitué de recouvrement.
+            if start + chunk_size >= total:
+                break
+            start += step
     except SRTParseError:
         raise
     except Exception as exc:  # garde-fou : on convertit toute erreur inattendue

@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from pathlib import Path
 
 import httpx
@@ -20,6 +21,52 @@ OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "llama3"
 OLLAMA_TIMEOUT = 60.0
 
+# --- Ingénierie de prompt -----------------------------------------------------
+# System prompt : définit le rôle, le schéma JSON strict et les consignes
+# d'analyse des rapports de pouvoir (qui domine, intention).
+SYSTEM_PROMPT = (
+    "Tu es un profileur psychologique et analyste narratif expert. "
+    "Ta mission est d'analyser un extrait de dialogue et d'en révéler le sous-texte.\n\n"
+    "RÈGLES D'ANALYSE :\n"
+    "1. DOMINATION : identifie qui mène la conversation. Le dominant est "
+    "généralement celui qui POSE LES QUESTIONS, oriente le sujet ou impose le "
+    "rythme ; le dominé est celui qui répond, se justifie ou subit.\n"
+    "2. INTENTION : déduis l'objectif réel de l'interaction en analysant les "
+    "verbes d'action et de volonté (vouloir, exiger, convaincre, obtenir, "
+    "cacher, protéger...). Distingue l'intention affichée de l'intention réelle.\n"
+    "3. CONFLIT : qualifie la nature de la tension (pouvoir, jalousie, "
+    "trahison, séduction, négociation, aucun...).\n"
+    "4. MANIPULATION : détecte culpabilisation, chantage affectif, "
+    "déformation des faits ou double discours.\n\n"
+    "FORMAT DE SORTIE : tu réponds STRICTEMENT et UNIQUEMENT avec un objet JSON "
+    "valide, sans texte avant ou après, sans bloc de code markdown."
+)
+
+# Few-shot : un exemple concret guide le modèle vers un formatage strict et une
+# analyse plus profonde (schéma complet attendu en sortie).
+FEW_SHOT_EXAMPLE_INPUT = (
+    "- Où étais-tu hier soir ?\n"
+    "- Je te l'ai déjà dit, au bureau.\n"
+    "- Curieux, j'ai appelé le bureau. Personne.\n"
+    "- ... Tu me surveilles maintenant ?"
+)
+FEW_SHOT_EXAMPLE_OUTPUT = json.dumps(
+    {
+        "tension_score": 8,
+        "conflict_type": "trahison",
+        "dominant_emotion": "méfiance",
+        "dominant_trait": "contrôle",
+        "power_dynamics": {
+            "who_dominates": "Le premier interlocuteur",
+            "reason": "Il pose toutes les questions et confronte l'autre à une "
+            "contradiction, plaçant son vis-à-vis en position de justification.",
+        },
+        "intention": "Confondre l'autre et obtenir un aveu de mensonge.",
+        "manipulation_detected": True,
+    },
+    ensure_ascii=False,
+)
+
 app = FastAPI(
     title="Subtext AI",
     description="Analyse psychologique de dialogues issus de fichiers SRT",
@@ -30,6 +77,42 @@ app = FastAPI(
 # Le répertoire est créé s'il n'existe pas pour éviter une erreur au démarrage.
 STATIC_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+def _parse_ollama_analysis(raw_text):
+    """
+    Tente de transformer la sortie textuelle d'Ollama en dictionnaire Python.
+
+    Robuste face à un modèle qui ne respecte pas parfaitement le format JSON :
+    1. Essai d'un parsing JSON direct.
+    2. À défaut, extraction du premier objet ``{...}`` repérable dans le texte
+       (cas fréquent où le modèle ajoute du texte autour du JSON).
+
+    Returns:
+        tuple[dict | None, bool] : (analyse parsée, format_valide). En cas
+        d'échec total, renvoie (None, False) sans jamais lever d'exception.
+    """
+    if isinstance(raw_text, dict):
+        return raw_text, True
+
+    if not isinstance(raw_text, str):
+        return None, False
+
+    # 1. Parsing direct
+    try:
+        return json.loads(raw_text), True
+    except json.JSONDecodeError:
+        pass
+
+    # 2. Extraction du premier bloc JSON présent dans la chaîne
+    match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0)), True
+        except json.JSONDecodeError:
+            pass
+
+    return None, False
 
 
 @app.get("/", include_in_schema=False)
@@ -103,16 +186,20 @@ async def analyze(file: UploadFile = File(...)):
     # 4. Pour cette V1 de test : on n'analyse que le premier bloc.
     first_chunk = chunks[0]
 
-    # 5. Préparation du prompt et du payload JSON pour Ollama
+    # 5. Construction du prompt Few-Shot (exemple résolu + dialogue à analyser).
     prompt = (
-        "Tu es un profileur psychologique. Analyse le dialogue suivant et renvoie "
-        "STRICTEMENT un objet JSON valide avec les clés 'tension_score' (int de 1 à 10), "
-        "'dominant_emotion' (string) et 'manipulation_detected' (bool). Dialogue : "
-        + first_chunk
+        "Voici un exemple d'analyse attendue.\n\n"
+        f"### Dialogue exemple :\n{FEW_SHOT_EXAMPLE_INPUT}\n\n"
+        f"### Analyse JSON attendue :\n{FEW_SHOT_EXAMPLE_OUTPUT}\n\n"
+        "Analyse maintenant le dialogue ci-dessous en respectant EXACTEMENT le "
+        "même schéma JSON (mêmes clés, mêmes types).\n\n"
+        f"### Dialogue à analyser :\n{first_chunk}\n\n"
+        "### Analyse JSON :"
     )
 
     payload = {
         "model": OLLAMA_MODEL,
+        "system": SYSTEM_PROMPT,
         "prompt": prompt,
         "stream": False,
         "format": "json",
@@ -143,20 +230,22 @@ async def analyze(file: UploadFile = File(...)):
                 ),
             ) from exc
 
-    # 7. Extraction et validation de l'analyse renvoyée par le modèle.
-    # Ollama renvoie le contenu généré dans la clé "response" (chaîne JSON ici).
+    # 7. Extraction et validation robuste de l'analyse renvoyée par le modèle.
+    # Ollama place le contenu généré dans la clé "response" (chaîne JSON ici).
     raw_analysis = ollama_response.get("response")
-    if raw_analysis is None:
-        raise HTTPException(
-            status_code=502,
-            detail="Réponse inattendue d'Ollama : champ 'response' absent.",
-        )
+    analysis, format_valid = _parse_ollama_analysis(raw_analysis)
 
-    try:
-        analysis = json.loads(raw_analysis)
-    except (json.JSONDecodeError, TypeError):
-        # Le modèle n'a pas respecté le format JSON : on renvoie la sortie brute.
-        logger.warning("Réponse d'Ollama non parsable en JSON, renvoi brut.")
-        analysis = {"raw_response": raw_analysis}
+    # Le modèle a échoué à produire un JSON exploitable : on dégrade proprement
+    # (réponse 200 structurée) au lieu de propager une erreur 502 au client.
+    if not format_valid:
+        logger.warning("Le modèle n'a pas renvoyé de JSON valide ; renvoi dégradé.")
+        analysis = {
+            "error": "Le modèle n'a pas respecté le format JSON attendu.",
+            "raw_response": raw_analysis,
+        }
 
-    return {"chunks_total": len(chunks), "analysis": analysis}
+    return {
+        "chunks_total": len(chunks),
+        "format_valid": format_valid,
+        "analysis": analysis,
+    }
