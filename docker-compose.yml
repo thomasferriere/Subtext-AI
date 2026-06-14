@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    container_name: subtext-ai
+    ports:
+      - "8000:8000"
+    environment:
+      # Permet au conteneur d'atteindre Ollama qui tourne sur la machine hôte.
+      - OLLAMA_URL=http://host.docker.internal:11434
+    extra_hosts:
+      # Indispensable sous Linux pour résoudre host.docker.internal
+      # (déjà disponible nativement sur Docker Desktop macOS/Windows).
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

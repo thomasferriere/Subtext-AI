@@ -25,7 +25,11 @@ logger = logging.getLogger("subtext.main")
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 
-OLLAMA_API_URL = "http://localhost:11434/api/generate"
+# URL de base d'Ollama configurable via la variable d'environnement OLLAMA_URL
+# (ex. http://host.docker.internal:11434 dans Docker). Fallback localhost pour
+# une exécution hors conteneur.
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+OLLAMA_API_URL = f"{OLLAMA_BASE_URL}/api/generate"
 OLLAMA_MODEL = "llama3"
 OLLAMA_TIMEOUT = 60.0
 
