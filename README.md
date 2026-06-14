@@ -1,3 +1,4 @@
+[![CI](https://github.com/thomasferriere/Subtext-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/thomasferriere/Subtext-AI/actions/workflows/ci.yml)
 # Subtext AI
 
 > Analyse psychologique et narrative de dialogues issus de fichiers de sous-titres (`.srt`), assistée par une IA **100 % locale**.
