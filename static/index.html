@@ -397,6 +397,63 @@
             border-color: rgba(200, 200, 200, 0.12);
         }
 
+        /* Section Historique "Analyses Précédentes" (style réglages macOS) */
+        .history-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            padding-left: 2px;
+        }
+
+        .history-list {
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 11px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background-color 0.15s ease;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .history-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-date {
+            font-size: 11px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
         /* macOS Window Footer */
         .window-footer {
             height: 32px;
@@ -436,6 +493,12 @@
                 <p class="subtitle">Importez un fichier de sous-titres .srt pour analyser les dynamiques relationnelles.</p>
             </header>
 
+            <!-- Historique des analyses (peuplé via GET /history, masqué si vide) -->
+            <section class="history-section" id="history-section" style="display: none;">
+                <div class="section-title">Analyses Précédentes</div>
+                <div class="history-list" id="history-list"></div>
+            </section>
+
             <!-- Drag and Drop Area -->
             <div class="drop-zone" id="drop-zone">
                 <svg class="drop-zone-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -467,6 +530,8 @@
         const fileInput = document.getElementById('file-input');
         const loader = document.getElementById('loader');
         const cardsContainer = document.getElementById('cards-container');
+        const historySection = document.getElementById('history-section');
+        const historyList = document.getElementById('history-list');
 
         let currentFile = null;
 
@@ -541,6 +606,9 @@
 
                 const data = await response.json();
                 displayResults(data);
+
+                // L'analyse vient d'être persistée : on rafraîchit l'historique.
+                loadHistory();
 
             } catch (err) {
                 alert(`Erreur d'analyse : ${err.message}`);
@@ -664,6 +732,74 @@
             
             return card;
         }
+
+        // --- Historique -----------------------------------------------------
+
+        // Récupère la liste des analyses précédentes auprès de l'API.
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                if (!response.ok) return;
+                const data = await response.json();
+                renderHistory(data.history || []);
+            } catch (err) {
+                // L'historique est non bloquant : on log sans perturber l'UI.
+                console.error('Historique indisponible :', err);
+            }
+        }
+
+        // Met en forme un timestamp ISO en date locale lisible.
+        function formatTimestamp(isoString) {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return '';
+            return date.toLocaleString('fr-FR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        // Construit la liste cliquable. Chaque entrée embarque déjà son résultat
+        // (champ `result`), donc un clic affiche le profil instantanément, sans
+        // nouvel appel à Ollama.
+        function renderHistory(entries) {
+            historyList.innerHTML = '';
+
+            if (!entries.length) {
+                historySection.style.display = 'none';
+                return;
+            }
+            historySection.style.display = 'block';
+
+            entries.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+
+                // textContent (et non innerHTML) : protège contre tout nom de
+                // fichier contenant des caractères type HTML.
+                const name = document.createElement('span');
+                name.className = 'history-name';
+                name.textContent = entry.filename;
+
+                const date = document.createElement('span');
+                date.className = 'history-date';
+                date.textContent = formatTimestamp(entry.timestamp);
+
+                item.append(name, date);
+
+                item.addEventListener('click', () => {
+                    document.getElementById('file-name').textContent = entry.filename;
+                    document.getElementById('file-name-sub').textContent =
+                        'Résultat chargé depuis l\'historique';
+                    displayResults(entry.result);
+                    cardsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+
+                historyList.appendChild(item);
+            });
+        }
+
+        // Chargement initial de l'historique au démarrage de la page.
+        loadHistory();
     </script>
 </body>
 </html>
