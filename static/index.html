@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subtext AI — Analyse de sous-titres</title>
+  <style>
+    :root {
+      --glass-bg: rgba(255, 255, 255, 0.12);
+      --glass-border: rgba(255, 255, 255, 0.25);
+      --text: #f5f5f7;
+      --text-dim: rgba(245, 245, 247, 0.65);
+      --accent: #0a84ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+        "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: var(--text);
+      background: linear-gradient(135deg, #1d1d3f 0%, #3a1c71 50%, #b06ab3 100%);
+      background-attachment: fixed;
+    }
+
+    .card {
+      width: min(560px, 100%);
+      padding: 2.5rem;
+      border-radius: 24px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+    }
+
+    h1 { font-size: 1.9rem; font-weight: 600; letter-spacing: -0.02em; }
+    .subtitle { color: var(--text-dim); margin: 0.4rem 0 2rem; font-size: 0.95rem; }
+
+    .dropzone {
+      border: 1.5px dashed var(--glass-border);
+      border-radius: 16px;
+      padding: 2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent);
+    }
+    .dropzone span { color: var(--text-dim); font-size: 0.9rem; }
+    .filename { margin-top: 0.75rem; font-size: 0.9rem; color: var(--text); }
+
+    button {
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: 0.85rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button:hover:not(:disabled) { opacity: 0.9; }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    pre {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--glass-border);
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 320px;
+      overflow: auto;
+    }
+    pre.error { color: #ff6b6b; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Subtext AI</h1>
+    <p class="subtitle">Analyse psychologique &amp; narrative de fichiers de sous-titres (.srt)</p>
+
+    <label class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".srt" class="hidden" />
+      <div>📄 <strong>Déposez un fichier .srt</strong> ou cliquez pour parcourir</div>
+      <span>Le dialogue est analysé localement via Ollama.</span>
+      <div class="filename" id="filename"></div>
+    </label>
+
+    <button id="analyzeBtn" disabled>Analyser</button>
+
+    <pre id="result" class="hidden"></pre>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const dropzone = document.getElementById("dropzone");
+    const filenameEl = document.getElementById("filename");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const resultEl = document.getElementById("result");
+
+    let selectedFile = null;
+
+    function setFile(file) {
+      selectedFile = file || null;
+      filenameEl.textContent = file ? `Sélectionné : ${file.name}` : "";
+      analyzeBtn.disabled = !file;
+    }
+
+    fileInput.addEventListener("change", (e) => setFile(e.target.files[0]));
+
+    ["dragover", "dragenter"].forEach((evt) =>
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+      })
+    );
+    ["dragleave", "drop"].forEach((evt) =>
+      dropzone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+      })
+    );
+    dropzone.addEventListener("drop", (e) => {
+      const file = e.dataTransfer.files[0];
+      if (file) setFile(file);
+    });
+
+    function showResult(data, isError = false) {
+      resultEl.classList.remove("hidden");
+      resultEl.classList.toggle("error", isError);
+      resultEl.textContent =
+        typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    }
+
+    analyzeBtn.addEventListener("click", async () => {
+      if (!selectedFile) return;
+
+      analyzeBtn.disabled = true;
+      analyzeBtn.textContent = "Analyse en cours…";
+
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      try {
+        const res = await fetch("/analyze", { method: "POST", body: formData });
+        const data = await res.json().catch(() => ({ detail: "Réponse illisible." }));
+        if (!res.ok) {
+          showResult(`Erreur ${res.status} : ${data.detail || "inconnue"}`, true);
+        } else {
+          showResult(data);
+        }
+      } catch (err) {
+        showResult(`Erreur réseau : ${err.message}`, true);
+      } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = "Analyser";
+      }
+    });
+  </script>
+</body>
+</html>
