@@ -1,0 +1,40 @@
+# Calqué sur .gitignore + fichiers inutiles au runtime du conteneur.
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Base de données SQLite locale (ne JAMAIS copier dans l'image)
+*.db
+*.sqlite3
+
+# Secrets / variables d'environnement
+.env
+.env.*
+*.env
+
+# OS
+.DS_Store
+.Rhistory
+
+# Git & métadonnées
+.git/
+.gitignore
+.dockerignore
+
+# Outils / éditeurs
+.claude/
+.vscode/
+.idea/
+
+# Documentation & assets non nécessaires à l'exécution
+README.md
+LEGAL.md
+LICENSE
+AI_CONTEXT.md
+docs/
+Dockerfile
