@@ -3,206 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subtext AI - Profiler Psychologique</title>
+    <title>Subtext AI - macOS Settings Edition</title>
     <style>
         :root {
-            --primary-color: #3b82f6;
-            --primary-glow: rgba(59, 130, 246, 0.5);
-            --bg-dark: #090a0f;
-            --text-light: #f5f5f7;
-            --text-muted: rgba(255, 255, 255, 0.5);
-            --glass-bg: rgba(255, 255, 255, 0.06);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg-dark: #121217;
+            --window-bg: rgba(28, 28, 32, 0.85);
+            --card-bg: rgba(255, 255, 255, 0.025);
+            --border-light: rgba(255, 255, 255, 0.07);
+            --text-primary: #f5f5f7;
+            --text-secondary: #86868b;
+            --text-muted: rgba(255, 255, 255, 0.3);
+            
+            /* macOS System Colors */
+            --mac-blue: #0a84ff;
+            --mac-green: #30d158;
+            --mac-yellow: #ffd60a;
+            --mac-orange: #ff9f0a;
+            --mac-red: #ff453a;
+            --mac-purple: #bf5af2;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            /* Police système Apple appliquée explicitement à tout le document */
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
             background-color: var(--bg-dark);
-            color: var(--text-light);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow-x: hidden;
             position: relative;
-            padding: 20px;
+            padding: 40px 20px;
         }
 
-        /* Animated colorful background blobs for Glassmorphism depth */
-        .bg-glow {
+        /* Ambient background glow */
+        .ambient-glow {
             position: absolute;
             border-radius: 50%;
-            filter: blur(140px);
+            filter: blur(160px);
             z-index: -1;
-            opacity: 0.35;
+            opacity: 0.18;
             pointer-events: none;
-            animation: float 25s infinite alternate ease-in-out;
         }
 
-        .bg-glow-1 {
-            width: 550px;
-            height: 550px;
-            background: radial-gradient(circle, #3b82f6 0%, #1e40af 100%);
+        .glow-1 {
+            width: 600px;
+            height: 600px;
+            background: var(--mac-blue);
             top: -10%;
-            left: -5%;
+            left: 10%;
         }
 
-        .bg-glow-2 {
+        .glow-2 {
             width: 500px;
             height: 500px;
-            background: radial-gradient(circle, #ec4899 0%, #8b5cf6 100%);
+            background: var(--mac-purple);
             bottom: -10%;
-            right: -5%;
-            animation-delay: -5s;
+            right: 10%;
         }
 
-        .bg-glow-3 {
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, #10b981 0%, #06b6d4 100%);
-            top: 40%;
-            left: 30%;
-            animation-delay: -10s;
-        }
-
-        @keyframes float {
-            0% {
-                transform: translate(0, 0) scale(1);
-            }
-            100% {
-                transform: translate(60px, 80px) scale(1.1);
-            }
-        }
-
-        /* Glassmorphic Container */
-        .container {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid var(--glass-border);
-            border-radius: 28px;
-            padding: 40px;
+        /* macOS Window Container */
+        .window {
+            background: var(--window-bg);
+            backdrop-filter: blur(35px) saturate(200%);
+            -webkit-backdrop-filter: blur(35px) saturate(200%);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
             width: 100%;
-            max-width: 650px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 700px;
+            /* Hauteur dynamique : taille de référence en V1 via min-height, puis
+               le conteneur s'allonge gracieusement vers le bas au fil des blocs
+               d'analyse ajoutés en JS. Aucune barre de défilement interne. */
+            height: auto;
+            min-height: 400px;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.4);
             z-index: 10;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            /* hidden = clipping des coins arrondis, sans jamais générer de
+               barre de défilement (la hauteur suit le contenu). */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Header Style */
-        header {
-            text-align: center;
-            margin-bottom: 35px;
-        }
-
-        .logo-container {
-            display: inline-flex;
-            justify-content: center;
+        /* macOS Titlebar */
+        .titlebar {
+            height: 48px;
+            background: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+            position: relative;
+            display: flex;
             align-items: center;
-            width: 64px;
-            height: 64px;
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 15px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            justify-content: center;
+            user-select: none;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .dot-close { background-color: var(--mac-red); }
+        .dot-minimize { background-color: var(--mac-yellow); }
+        .dot-zoom { background-color: var(--mac-green); }
+
+        .window-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.1px;
+        }
+
+        /* Window Content */
+        .content {
+            padding: 30px;
+        }
+
+        /* Header block */
+        header {
+            margin-bottom: 25px;
+            text-align: left;
         }
 
         h1 {
-            font-size: 26px;
+            font-size: 20px;
             font-weight: 700;
-            letter-spacing: -0.5px;
-            margin-bottom: 6px;
-            background: linear-gradient(135deg, #ffffff 0%, #a3a3a3 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.4px;
+            margin-bottom: 4px;
         }
 
         .subtitle {
-            font-size: 14px;
-            color: var(--text-muted);
-            font-weight: 400;
+            font-size: 13px;
+            color: var(--text-secondary);
         }
 
         /* Drag & Drop Area */
         .drop-zone {
-            border: 2px dashed rgba(255, 255, 255, 0.18);
-            border-radius: 20px;
-            padding: 45px 20px;
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            padding: 35px 20px;
             text-align: center;
             background: rgba(255, 255, 255, 0.01);
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            margin-bottom: 25px;
         }
 
         .drop-zone:hover, .drop-zone.dragover {
-            border-color: var(--primary-color);
-            background: rgba(59, 130, 246, 0.05);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.15);
-        }
-
-        .drop-zone.dragover {
-            animation: pulse-border 1.5s infinite;
-        }
-
-        @keyframes pulse-border {
-            0%, 100% { border-color: rgba(59, 130, 246, 0.4); }
-            50% { border-color: rgba(59, 130, 246, 1); }
+            border-color: var(--mac-blue);
+            background: rgba(10, 132, 255, 0.05);
         }
 
         .drop-zone-icon {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 15px;
-            color: rgba(255, 255, 255, 0.6);
-            transition: color 0.3s;
+            width: 38px;
+            height: 38px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            transition: color 0.2s;
         }
 
         .drop-zone:hover .drop-zone-icon, .drop-zone.dragover .drop-zone-icon {
-            color: var(--primary-color);
+            color: var(--mac-blue);
         }
 
         .drop-zone-text {
-            font-size: 15px;
+            font-size: 13.5px;
             font-weight: 500;
-            color: rgba(255, 255, 255, 0.85);
-            margin-bottom: 6px;
+            color: var(--text-primary);
+            margin-bottom: 4px;
         }
 
         .drop-zone-subtext {
-            font-size: 12px;
-            color: var(--text-muted);
+            font-size: 11.5px;
+            color: var(--text-secondary);
         }
 
         #file-input {
             display: none;
         }
 
-        /* Loader & Spinner */
+        /* Loader */
         .loader {
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin: 30px 0;
+            padding: 40px 0;
             text-align: center;
         }
 
         .spinner {
-            width: 38px;
-            height: 38px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
+            width: 28px;
+            height: 28px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 0.9s linear infinite;
+            border-top-color: var(--mac-blue);
+            animation: spin 0.8s linear infinite;
             margin-bottom: 12px;
         }
 
@@ -211,121 +225,30 @@
         }
 
         .loader-text {
-            font-size: 13.5px;
-            color: var(--text-muted);
+            font-size: 13px;
+            color: var(--text-secondary);
         }
 
-        /* Dashboard of results */
-        .dashboard {
-            display: none;
-            margin-top: 30px;
-            padding: 20px;
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        .dashboard-title {
-            font-size: 14.5px;
-            font-weight: 600;
-            color: white;
-            margin-bottom: 16px;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 15px;
-        }
-
-        .metric-card {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
-            padding: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.03);
+        /* Container of Cards */
+        .cards-container {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            min-height: 95px;
+            gap: 16px;
         }
 
-        .metric-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        /* Elegant Analysis Card */
+        .analysis-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 26px;
+            animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transition: background-color 0.2s, border-color 0.2s;
         }
 
-        .tension-value {
-            font-size: 22px;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 8px;
-        }
-
-        .tension-bar-container {
-            background: rgba(255, 255, 255, 0.08);
-            height: 5px;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .tension-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
-            transition: width 0.8s ease-out;
-        }
-
-        .emotion-badge {
-            align-self: flex-start;
-            font-size: 14.5px;
-            font-weight: 600;
-            padding: 5px 12px;
-            border-radius: 20px;
-            background: rgba(59, 130, 246, 0.15);
-            border: 1px solid rgba(59, 130, 246, 0.25);
-            color: #93c5fd;
-            text-transform: capitalize;
-        }
-
-        .manipulation-status {
-            align-self: flex-start;
-            font-size: 13.5px;
-            font-weight: 600;
-            padding: 5px 12px;
-            border-radius: 20px;
-        }
-
-        .manipulation-status.detected {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.25);
-            color: #fca5a5;
-            animation: pulse-danger 2.5s infinite;
-        }
-
-        .manipulation-status.clean {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.25);
-            color: #a7f3d0;
-        }
-
-        @keyframes pulse-danger {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.75; }
-        }
-
-        /* Result Code Area */
-        .result-container {
-            display: none;
-            margin-top: 25px;
-            border-radius: 18px;
-            background: rgba(7, 8, 12, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            overflow: hidden;
-            animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .analysis-card:hover {
+            background: rgba(255, 255, 255, 0.045);
+            border-color: rgba(255, 255, 255, 0.12);
         }
 
         @keyframes slide-up {
@@ -339,154 +262,203 @@
             }
         }
 
-        .result-header {
+        /* Card Header */
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 18px;
-            background: rgba(255, 255, 255, 0.02);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            margin-bottom: 16px;
         }
 
-        .result-header h3 {
-            font-size: 12.5px;
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-size: 14px;
             font-weight: 600;
-            color: var(--text-muted);
+            color: var(--text-primary);
+        }
+
+        .emotion-text {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            text-transform: capitalize;
+        }
+
+        /* Manipulation Badge */
+        .manipulation-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 5px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .btn-copy {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 6px;
-            color: rgba(255, 255, 255, 0.85);
-            padding: 5px 10px;
-            font-size: 11.5px;
-            font-weight: 500;
-            cursor: pointer;
+        /* Rouge brique désaturé et subtil (pas d'alerte criarde) */
+        .manipulation-badge.detected {
+            background: rgba(150, 82, 74, 0.14);
+            color: #b58178;
+            border: 1px solid rgba(150, 82, 74, 0.22);
+        }
+
+        /* État neutre macOS */
+        .manipulation-badge.clean {
+            background: rgba(200, 200, 200, 0.1);
+            color: var(--text-secondary);
+            border: 1px solid rgba(200, 200, 200, 0.12);
+        }
+
+        /* Tension Score Slider representation */
+        .tension-row {
             display: flex;
             align-items: center;
-            gap: 5px;
-            transition: all 0.2s;
+            gap: 12px;
+            margin: 16px 0;
         }
 
-        .btn-copy:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: white;
+        .tension-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            width: 60px;
+            font-weight: 500;
         }
 
-        .result-block {
-            margin: 0;
-            padding: 18px;
-            max-height: 220px;
-            overflow-y: auto;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-            font-size: 12.5px;
-            line-height: 1.5;
-            color: #d8b4fe;
-            text-align: left;
-        }
-
-        .result-block::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        .result-block::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .result-block::-webkit-scrollbar-thumb {
+        .tension-track {
+            flex-grow: 1;
+            height: 5px;
             background: rgba(255, 255, 255, 0.08);
             border-radius: 3px;
+            overflow: hidden;
         }
 
-        .result-block::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.15);
+        .tension-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* JSON Syntax Highlighting */
-        .json-key { color: #818cf8; font-weight: 500; }
-        .json-string { color: #34d399; }
-        .json-number { color: #fbbf24; }
-        .json-boolean { color: #f472b6; }
-        .json-null { color: #9ca3af; }
+        .tension-num {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            width: 35px;
+            text-align: right;
+        }
+
+        /* Badges / Dynamic Tags row */
+        .badges-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 14px;
+        }
+
+        .badge-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .badge-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        /* Pastilles neutres au design macOS (plus de couleurs accentuées) */
+        .badge-value {
+            font-size: 11.5px;
+            font-weight: 500;
+            padding: 7px 11px;
+            border-radius: 6px;
+            background: rgba(200, 200, 200, 0.1);
+            border: 1px solid rgba(200, 200, 200, 0.12);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        /* Anciennes variantes colorées neutralisées (conservées pour
+           compatibilité avec les classes posées par le JavaScript). */
+        .badge-value.val-blue,
+        .badge-value.val-purple {
+            background: rgba(200, 200, 200, 0.1);
+            color: var(--text-secondary);
+            border-color: rgba(200, 200, 200, 0.12);
+        }
+
+        /* macOS Window Footer */
+        .window-footer {
+            height: 32px;
+            background: rgba(0, 0, 0, 0.12);
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 11px;
+            color: var(--text-muted);
+            user-select: none;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Decorative background blobs -->
-    <div class="bg-glow bg-glow-1"></div>
-    <div class="bg-glow bg-glow-2"></div>
-    <div class="bg-glow bg-glow-3"></div>
+    <!-- Ambient backgrounds -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
 
-    <div class="container">
-        <header>
-            <div class="logo-container">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#logoGrad)" />
-                    <path d="M7 16C10 16 11 9 14 9C17 9 18 23 21 23C24 23 25 16 28 16" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <defs>
-                        <linearGradient id="logoGrad" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#3b82f6"/>
-                            <stop offset="1" stop-color="#8b5cf6"/>
-                        </linearGradient>
-                    </defs>
+    <div class="window">
+        <!-- macOS Titlebar -->
+        <div class="titlebar">
+            <div class="window-controls">
+                <div class="dot dot-close"></div>
+                <div class="dot dot-minimize"></div>
+                <div class="dot dot-zoom"></div>
+            </div>
+            <div class="window-title">Subtext AI</div>
+        </div>
+
+        <!-- Window Content -->
+        <div class="content">
+            <header>
+                <h1>Analyse Psychologique</h1>
+                <p class="subtitle">Importez un fichier de sous-titres .srt pour analyser les dynamiques relationnelles.</p>
+            </header>
+
+            <!-- Drag and Drop Area -->
+            <div class="drop-zone" id="drop-zone">
+                <svg class="drop-zone-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                 </svg>
+                <div class="drop-zone-text" id="file-name">Déposez votre fichier .srt ici</div>
+                <div class="drop-zone-subtext" id="file-name-sub">ou cliquez pour parcourir les dossiers</div>
+                <input type="file" id="file-input" accept=".srt">
             </div>
-            <h1>Subtext AI</h1>
-            <p class="subtitle">Analyse psychologique et émotionnelle de dialogues</p>
-        </header>
 
-        <!-- Drag and Drop Area -->
-        <div class="drop-zone" id="drop-zone">
-            <svg class="drop-zone-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-            </svg>
-            <div class="drop-zone-text" id="file-name">Faites glisser votre fichier .srt ici</div>
-            <div class="drop-zone-subtext" id="file-name-sub">ou cliquez pour parcourir vos fichiers</div>
-            <input type="file" id="file-input" accept=".srt">
-        </div>
-
-        <!-- Loader -->
-        <div class="loader" id="loader">
-            <div class="spinner"></div>
-            <div class="loader-text">Analyse psychologique des dialogues en cours avec Ollama...</div>
-        </div>
-
-        <!-- Dashboard visual metrics -->
-        <div class="dashboard" id="dashboard-container">
-            <div class="dashboard-title">Profil Psychologique Extrait</div>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-label">Score de Tension</div>
-                    <div class="tension-value" id="tension-val">0/10</div>
-                    <div class="tension-bar-container">
-                        <div class="tension-bar" id="tension-bar"></div>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Émotion Dominante</div>
-                    <div class="emotion-badge" id="emotion-badge">-</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Manipulation Détectée</div>
-                    <div class="manipulation-status" id="manipulation-status">-</div>
-                </div>
+            <!-- Loader -->
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <div class="loader-text">Analyse psychologique des dialogues en cours...</div>
             </div>
-        </div>
 
-        <!-- Raw JSON Result -->
-        <div class="result-container" id="result-container">
-            <div class="result-header">
-                <h3>Résultat Brut (JSON)</h3>
-                <button class="btn-copy" id="btn-copy">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    Copier
-                </button>
-            </div>
-            <pre class="result-block"><code id="result-code"></code></pre>
+            <!-- Container of Cards generated by Javascript -->
+            <div class="cards-container" id="cards-container"></div>
+        </div>
+        <!-- macOS Window Footer -->
+        <div class="window-footer">
+            <span>Subtext AI v1.0.0</span>
+            <span>Prêt</span>
         </div>
     </div>
 
@@ -494,10 +466,7 @@
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const loader = document.getElementById('loader');
-        const dashboardContainer = document.getElementById('dashboard-container');
-        const resultContainer = document.getElementById('result-container');
-        const resultCode = document.getElementById('result-code');
-        const btnCopy = document.getElementById('btn-copy');
+        const cardsContainer = document.getElementById('cards-container');
 
         let currentFile = null;
 
@@ -517,6 +486,8 @@
         });
 
         dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
             const dt = e.dataTransfer;
             const files = dt.files;
             if (files.length) {
@@ -550,11 +521,10 @@
         async function uploadAndAnalyze() {
             if (!currentFile) return;
 
-            // Clear and hide old results
-            dashboardContainer.style.display = 'none';
-            resultContainer.style.display = 'none';
+            // Clear old cards and show loader
+            cardsContainer.innerHTML = '';
             loader.style.display = 'flex';
-
+            
             const formData = new FormData();
             formData.append('file', currentFile);
             
@@ -573,9 +543,9 @@
                 displayResults(data);
 
             } catch (err) {
-                alert(`Erreur : ${err.message}`);
-                document.getElementById('file-name').textContent = 'Faites glisser votre fichier .srt ici';
-                document.getElementById('file-name-sub').textContent = 'ou cliquez pour parcourir vos fichiers';
+                alert(`Erreur d'analyse : ${err.message}`);
+                document.getElementById('file-name').textContent = 'Déposez votre fichier .srt ici';
+                document.getElementById('file-name-sub').textContent = 'ou cliquez pour parcourir les dossiers';
                 currentFile = null;
             } finally {
                 loader.style.display = 'none';
@@ -583,90 +553,116 @@
         }
 
         function displayResults(data) {
-            dashboardContainer.style.display = 'block';
-            resultContainer.style.display = 'block';
-
-            let profile = null;
+            cardsContainer.innerHTML = '';
+            let analysesList = [];
             
-            // Support both wrapped response {"analysis": {...}} and raw response formats
-            try {
-                if (data.analysis) {
-                    profile = data.analysis;
-                } else if (data.response) {
-                    profile = JSON.parse(data.response.trim());
+            // Extract the core analysis list from response
+            let sourceData = data;
+            
+            // Ollama standard API structure check
+            if (data.response) {
+                try {
+                    sourceData = JSON.parse(data.response.trim());
+                } catch (e) {
+                    const jsonMatch = data.response.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try { sourceData = JSON.parse(jsonMatch[0]); } catch (e2) {}
+                    }
+                }
+            }
+
+            // Normalise structural response from FastAPI (data.analysis contains the profile)
+            if (sourceData.analysis) {
+                if (Array.isArray(sourceData.analysis)) {
+                    analysesList = sourceData.analysis;
                 } else {
-                    profile = data;
+                    analysesList = [sourceData.analysis];
                 }
-            } catch (e) {
-                console.error("Erreur de parsing de la réponse d'Ollama", e);
-                const jsonMatch = data.response ? data.response.match(/\{[\s\S]*\}/) : null;
-                if (jsonMatch) {
-                    try {
-                        profile = JSON.parse(jsonMatch[0]);
-                    } catch (e2) {}
-                }
-            }
-
-            if (!profile) {
-                profile = {
-                    tension_score: 5,
-                    dominant_emotion: "Inconnue",
-                    manipulation_detected: false
-                };
-            }
-
-            // 1. Tension Score UI
-            const tensionScore = Math.min(Math.max(parseInt(profile.tension_score) || 0, 0), 10);
-            document.getElementById('tension-val').textContent = `${tensionScore}/10`;
-            document.getElementById('tension-bar').style.width = `${tensionScore * 10}%`;
-
-            // 2. Emotion UI
-            document.getElementById('emotion-badge').textContent = profile.dominant_emotion || 'Inconnue';
-
-            // 3. Manipulation UI
-            const manipulationBadge = document.getElementById('manipulation-status');
-            if (profile.manipulation_detected) {
-                manipulationBadge.textContent = 'Détectée !';
-                manipulationBadge.className = 'manipulation-status detected';
+            } else if (sourceData.analyses && Array.isArray(sourceData.analyses)) {
+                analysesList = sourceData.analyses;
+            } else if (Array.isArray(sourceData)) {
+                analysesList = sourceData;
             } else {
-                manipulationBadge.textContent = 'Aucune';
-                manipulationBadge.className = 'manipulation-status clean';
+                analysesList = [sourceData];
             }
 
-            // 4. Raw JSON formatted output
-            resultCode.innerHTML = syntaxHighlight(profile);
-
-            // Copy to clipboard setup
-            btnCopy.onclick = () => {
-                navigator.clipboard.writeText(JSON.stringify(profile, null, 2)).then(() => {
-                    const originalContent = btnCopy.innerHTML;
-                    btnCopy.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copié !`;
-                    setTimeout(() => {
-                        btnCopy.innerHTML = originalContent;
-                    }, 2000);
-                });
-            };
+            // Loop to render each card
+            analysesList.forEach((profile, index) => {
+                const card = createAnalysisCard(profile, index + 1);
+                cardsContainer.appendChild(card);
+            });
         }
 
-        // Helper function for syntax highlighting JSON
-        function syntaxHighlight(json) {
-            let jsonStr = JSON.stringify(json, null, 2);
-            jsonStr = jsonStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return jsonStr.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
-                let cls = 'number';
-                if (/^"/.test(match)) {
-                    if (/:$/.test(match)) {
-                        cls = 'key';
-                    } else {
-                        cls = 'string';
-                    }
-                } else if (/true|false/.test(match)) {
-                    cls = 'boolean';
-                } else if (/null/.test(match)) {
-                    cls = 'null';
+        function createAnalysisCard(profile, index) {
+            const card = document.createElement('div');
+            card.className = 'analysis-card';
+
+            const emotion = profile.dominant_emotion || 'Inconnue';
+            const tension = Math.min(Math.max(parseInt(profile.tension_score) || 0, 0), 10);
+            
+            // Dynamic color selection for the progress bar
+            let tensionColor = 'var(--mac-green)';
+            if (tension >= 4 && tension <= 6) {
+                tensionColor = 'var(--mac-yellow)';
+            } else if (tension >= 7 && tension <= 8) {
+                tensionColor = 'var(--mac-orange)';
+            } else if (tension >= 9) {
+                tensionColor = 'var(--mac-red)';
+            }
+
+            // Manipulation status element
+            const manipulationClass = profile.manipulation_detected ? 'detected' : 'clean';
+            const manipulationText = profile.manipulation_detected ? 'Manipulation détectée' : 'Aucune manipulation';
+
+            // Power dynamics parsing (handle both string and object)
+            let powerDynamics = 'Non définie';
+            let powerDynamicsTooltip = '';
+            if (profile.power_dynamics) {
+                if (typeof profile.power_dynamics === 'object') {
+                    const who = profile.power_dynamics.who_dominates || '';
+                    const reason = profile.power_dynamics.reason || '';
+                    powerDynamics = who;
+                    powerDynamicsTooltip = reason ? `${who}: ${reason}` : who;
+                } else {
+                    powerDynamics = profile.power_dynamics;
+                    powerDynamicsTooltip = profile.power_dynamics;
                 }
-                return `<span class="json-${cls}">${match}</span>`;
-            });
+            }
+
+            const intention = profile.intention || 'Non spécifiée';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="header-left">
+                        <div>
+                            <h4 class="card-title">Bloc #${index}</h4>
+                            <span class="emotion-text">Émotion : ${emotion}</span>
+                        </div>
+                    </div>
+                    <span class="manipulation-badge ${manipulationClass}">${manipulationText}</span>
+                </div>
+                
+                <div class="tension-row">
+                    <span class="tension-label">Tension</span>
+                    <div class="tension-track">
+                        <div class="tension-fill" style="width: ${tension * 10}%; background-color: ${tensionColor}"></div>
+                    </div>
+                    <span class="tension-num">${tension}/10</span>
+                </div>
+                
+                <div class="badges-row">
+                    <div class="badge-item">
+                        <span class="badge-label">Dynamique de pouvoir</span>
+                        <span class="badge-value val-blue" title="${powerDynamicsTooltip}">${powerDynamics}</span>
+                    </div>
+                    <div class="badge-item">
+                        <span class="badge-label">Intention</span>
+                        <span class="badge-value val-purple" title="${intention}">${intention}</span>
+                    </div>
+                </div>
+            `;
+            
+            return card;
         }
     </script>
 </body>
