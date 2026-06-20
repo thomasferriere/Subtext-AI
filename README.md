@@ -185,14 +185,25 @@ L'application est alors disponible sur **http://localhost:8000**. La base SQLite
 
 ---
 
+
+## À propos de ce projet
+
+Ce projet a été développé avec les outils modernes du développement en 2026, incluant l'assistance par IA (Claude).
+
+**Important** : L'architecture, les décisions techniques et le design de la base de données sont les miens. L'IA a été utilisée pour accélérer l'implémentation, pas pour la remplacer.
+
+Voir les commits pour la transparence complète.
+
+---
+
 ## Avertissement & mentions légales
 
 > ⚠️ Subtext AI produit une analyse **générée par IA**, **indicative et faillible**, **sans valeur médicale, psychologique ou juridique**. Elle ne doit pas servir à évaluer des personnes réelles. L'importation d'un `.srt` suppose que l'utilisateur **dispose des droits** sur le contenu. Le traitement est **100 % local** (aucune donnée externe) ; les analyses sont stockées dans `subtext.db` et peuvent être effacées via `DELETE /history` (droit à l'effacement).
 
-Détails complets — disclaimer IA, transparence (AI Act), droits d'auteur, RGPD/données personnelles, limitation de responsabilité — dans **[LEGAL.md](LEGAL.md)**.
+Détails complets - disclaimer IA, transparence (AI Act), droits d'auteur, RGPD/données personnelles, limitation de responsabilité — dans **[LEGAL.md](LEGAL.md)**.
 
 ---
 
 ## Licence
 
-Distribué sous licence **MIT** — voir le fichier [LICENSE](LICENSE). Réutilisation libre avec conservation de la notice de copyright. Logiciel fourni « en l'état », sans garantie.
+Distribué sous licence **MIT** - voir le fichier [LICENSE](LICENSE). Réutilisation libre avec conservation de la notice de copyright. Logiciel fourni « en l'état », sans garantie.
